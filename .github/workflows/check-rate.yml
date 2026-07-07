@@ -1,0 +1,39 @@
+name: Suivi taux MGA/MUR
+
+on:
+  schedule:
+    # Tous les jours à 06:00 UTC (10:00 à Maurice / Madagascar +3).
+    # L'API fawazahmed0 est mise à jour quotidiennement, inutile de
+    # vérifier plus souvent.
+    - cron: "0 6 * * *"
+  workflow_dispatch: {}   # permet de lancer manuellement depuis GitHub
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Vérifier le taux et notifier
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SEUIL_PCT: "0"   # notifier à chaque changement ; ex: "0.5" pour ±0,5%
+        run: python check_rate.py
+
+      - name: Sauvegarder le dernier taux
+        run: |
+          git config user.name "rate-bot"
+          git config user.email "actions@github.com"
+          git add last_rate.json
+          git diff --cached --quiet || git commit -m "Mise à jour du taux MGA/MUR"
+          git push

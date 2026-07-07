@@ -1,0 +1,10 @@
+# Secrets locaux — jamais versionnés
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Config locale Claude Code
+.claude/
