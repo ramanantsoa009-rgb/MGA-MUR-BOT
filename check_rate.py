@@ -128,6 +128,16 @@ def save_rate(rate: Rate) -> None:
 
 
 # --- Notification Telegram ---
+# Bouton inline « Vérifier maintenant » sous chaque message. Le clic est
+# traité par le Cloudflare Worker (voir cloudflare-worker/), qui relance le
+# workflow GitHub. Sans Worker déployé, le bouton reste inerte (sans erreur).
+VERIFIER_KEYBOARD = {
+    "inline_keyboard": [
+        [{"text": "Vérifier maintenant", "callback_data": "trigger_check"}]
+    ]
+}
+
+
 def send_telegram(config: Config, message: str) -> None:
     url = f"https://api.telegram.org/bot{config.telegram_token}/sendMessage"
     payload = json.dumps(
@@ -135,6 +145,7 @@ def send_telegram(config: Config, message: str) -> None:
             "chat_id": config.telegram_chat_id,
             "text": message,
             "parse_mode": "HTML",
+            "reply_markup": VERIFIER_KEYBOARD,
         }
     ).encode()
     req = urllib.request.Request(

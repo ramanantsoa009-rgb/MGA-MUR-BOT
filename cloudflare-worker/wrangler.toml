@@ -1,0 +1,12 @@
+name = "mga-mur-telegram-trigger"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+
+# Variables NON secrètes (les secrets sont ajoutés via `wrangler secret put`).
+[vars]
+GITHUB_OWNER = "ramanantsoa009-rgb"
+GITHUB_REPO = "MGA-MUR-BOT"
+WORKFLOW_FILE = "check-rate.yml"
+GIT_REF = "main"
+# Restreint le bot à ton chat uniquement (laisse vide pour autoriser tout le monde).
+AUTHORIZED_CHAT_ID = "7004757178"
