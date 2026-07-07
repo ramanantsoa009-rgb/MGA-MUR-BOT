@@ -125,7 +125,10 @@ async function triggerWorkflow(env) {
       "User-Agent": "mga-mur-telegram-trigger",
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ ref: env.GIT_REF || "main" }),
+    body: JSON.stringify({
+      ref: env.GIT_REF || "main",
+      inputs: { force: "true" }, // déclenchement manuel : toujours notifier
+    }),
   });
   if (resp.status !== 204) {
     console.error("workflow_dispatch:", resp.status, await resp.text());

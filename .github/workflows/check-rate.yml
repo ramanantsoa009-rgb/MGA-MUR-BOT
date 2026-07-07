@@ -6,7 +6,12 @@ on:
     # L'API fawazahmed0 est mise à jour quotidiennement, inutile de
     # vérifier plus souvent.
     - cron: "0 6 * * *"
-  workflow_dispatch: {}   # permet de lancer manuellement depuis GitHub
+  workflow_dispatch:      # permet de lancer manuellement (GitHub ou Telegram)
+    inputs:
+      force:
+        description: "Notifier même si le taux n'a pas changé"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -28,6 +33,7 @@ jobs:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           SEUIL_PCT: "0"   # notifier à chaque changement ; ex: "0.5" pour ±0,5%
+          FORCE_REPORT: ${{ inputs.force }}   # true = déclenchement manuel forcé
         run: python check_rate.py
 
       - name: Sauvegarder le dernier taux

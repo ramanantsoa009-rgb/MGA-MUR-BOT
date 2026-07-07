@@ -79,6 +79,7 @@ class Config:
     telegram_token: str
     telegram_chat_id: str
     seuil_pct: float  # variation minimale (%) pour notifier ; 0 = tout changement
+    force: bool  # déclenchement manuel : notifier même sans changement
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -86,6 +87,8 @@ class Config:
             telegram_token=os.environ["TELEGRAM_TOKEN"],
             telegram_chat_id=os.environ["TELEGRAM_CHAT_ID"],
             seuil_pct=float(os.environ.get("SEUIL_PCT", "0")),
+            force=os.environ.get("FORCE_REPORT", "").strip().lower()
+            in ("1", "true", "yes", "oui"),
         )
 
 
@@ -184,6 +187,29 @@ def format_change_message(rate: Rate, previous: Rate, variation_pct: float) -> s
     )
 
 
+def format_current_message(rate: Rate, previous: Rate, variation_pct: float) -> str:
+    """Message de confirmation pour un déclenchement manuel (taux courant)."""
+    if rate.value == previous.value:
+        etat = "Aucune variation depuis la dernière vérification."
+        variation_line = ""
+    else:
+        tendance = "Hausse" if rate.value > previous.value else "Baisse"
+        etat = "Variation sous le seuil de notification."
+        variation_line = (
+            f"<b>Variation :</b> {variation_pct:+.3f} % ({tendance})\n"
+        )
+    return (
+        f"<b>TAUX ACTUEL MGA/MUR</b>\n"
+        f"{etat}\n"
+        f"\n"
+        f"<b>Taux actuel :</b> 1 MGA = {rate.value:.6f} MUR\n"
+        f"{variation_line}"
+        f"<b>Équivalence :</b> 1 MUR = {1 / rate.value:,.2f} MGA\n"
+        f"<b>Date de référence :</b> {format_date_iso(rate.date)}\n"
+        f"<b>Heure de Maurice :</b> {heure_maurice()}"
+    )
+
+
 # --- Logique principale ---
 def run(config: Config) -> None:
     rate = fetch_rate()
@@ -196,20 +222,26 @@ def run(config: Config) -> None:
         logger.info("Premier taux enregistré : %s", rate.value)
         return
 
-    if rate.value == previous.value:
-        logger.info("Aucun changement (%s), pas de notification.", rate.value)
-        return
+    changed = rate.value != previous.value
+    variation_pct = (
+        (rate.value - previous.value) / previous.value * 100 if changed else 0.0
+    )
+    notable = changed and abs(variation_pct) >= config.seuil_pct
 
-    variation_pct = (rate.value - previous.value) / previous.value * 100
-    if abs(variation_pct) < config.seuil_pct:
-        # Variation sous le seuil : on met quand même à jour le dernier taux connu.
-        logger.info("Variation %+.3f%% sous le seuil, pas de notif.", variation_pct)
+    if notable:
+        # Variation significative : notification standard.
+        send_telegram(config, format_change_message(rate, previous, variation_pct))
+        logger.info("Notification envoyée : %s -> %s", previous.value, rate.value)
+    elif config.force:
+        # Déclenchement manuel : on confirme toujours le taux courant.
+        send_telegram(config, format_current_message(rate, previous, variation_pct))
+        logger.info("Déclenchement manuel : taux courant %s.", rate.value)
+    else:
+        logger.info("Pas de notification (variation %+.3f%%).", variation_pct)
+
+    # On met à jour le dernier taux connu dès qu'il a bougé.
+    if changed:
         save_rate(rate)
-        return
-
-    send_telegram(config, format_change_message(rate, previous, variation_pct))
-    save_rate(rate)
-    logger.info("Notification envoyée : %s -> %s", previous.value, rate.value)
 
 
 def main() -> int:
