@@ -8,3 +8,7 @@ __pycache__/
 
 # Config locale Claude Code
 .claude/
+
+# Cloudflare Worker (fichiers générés)
+node_modules/
+.wrangler/
